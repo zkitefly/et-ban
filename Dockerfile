@@ -1,8 +1,9 @@
 FROM python:3.11-slim
 
-# 在 easytier 基础镜像中安装 Python 与依赖
-RUN apk add --no-cache \
-    python3 py3-pip wget ca-certificates
+# 安装系统依赖（wget 用于下载 GeoIP 数据库）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # 下载 GeoLite2 国家数据库
 RUN mkdir -p /usr/share/GeoIP && \
@@ -18,9 +19,9 @@ RUN mkdir -p /usr/share/GeoIP && \
 # 设置工作目录
 WORKDIR /app
 
-# 复制依赖文件并安装 Python 依赖
+# 安装 Python 依赖
 COPY requirements.txt .
-RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # 复制代理程序
 COPY proxy.py .
@@ -29,4 +30,4 @@ COPY proxy.py .
 EXPOSE 11221
 
 # 运行代理（监听端口、目标地址等均由环境变量控制）
-CMD ["python3", "proxy.py"]
+CMD ["python", "proxy.py"]
