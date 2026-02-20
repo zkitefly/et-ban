@@ -1,4 +1,4 @@
-FROM easytier/easytier:latest
+FROM python:3.11-slim
 
 # 在 easytier 基础镜像中安装 Python 与依赖
 RUN apk add --no-cache \
@@ -22,15 +22,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
 
-# 复制代理程序与入口脚本
+# 复制代理程序
 COPY proxy.py .
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
 
 # 暴露代理对外端口（11221），内部 easytier 仍监听 11010
 EXPOSE 11221
 
-# 覆盖 entrypoint：同时启动 easytier-core 和代理
-# 传给容器的所有参数都会转交给 easytier-core
-ENTRYPOINT ["/entrypoint.sh"]
-
+# 运行代理（监听端口、目标地址等均由环境变量控制）
+CMD ["python3", "proxy.py"]
