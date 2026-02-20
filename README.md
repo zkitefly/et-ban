@@ -14,7 +14,7 @@
 ## 架构说明
 
 - **代理**：监听 `LISTEN_PORT`（默认 **11221**），根据 GeoIP 规则决定拦截或放行
-- **后端目标**：允许的连接被转发到 `TARGET_HOST:TARGET_PORT`（例如 **宿主机 IP:11010**，指向 EasyTier）
+- **后端目标**：允许的连接被转发到 `TARGET_HOST`（格式：`host:port`，例如 **192.168.87.10:11010**，指向 EasyTier）
 - **EasyTier（可选）**：建议使用官方 `easytier/easytier:latest` 镜像或直接在宿主机运行，与本代理独立部署
 
 ## 使用方法
@@ -41,8 +41,7 @@ docker run -d \
   --name et-ban \
   --network host \
   -e LISTEN_PORT=11221 \
-  -e TARGET_HOST=192.168.87.10 \
-  -e TARGET_PORT=11010 \
+  -e TARGET_HOST=192.168.87.10:11010 \
   -e BLOCK_IF_IN_COUNTRIES='CN' \
   zkitefly/et-ban:latest
 ```
@@ -50,7 +49,7 @@ docker run -d \
 说明：
 
 - 对外提供端口：宿主机的 **11221**（可改 `LISTEN_PORT`）
-- 默认转发到：`TARGET_HOST:TARGET_PORT`（上例为 `192.168.87.10:11010`）
+- 默认转发到：`TARGET_HOST`（格式：`host:port`，上例为 `192.168.87.10:11010`）
 - 示例中拦截所有来自 **CN** 地区的连接，其它国家放行
 
 ### 4. 查看日志
@@ -70,10 +69,10 @@ docker stop et-ban && docker rm et-ban
 ### 代理相关环境变量
 
 - `LISTEN_PORT`：代理监听端口（默认 `11221`）
-- `TARGET_HOST`：转发目标地址（默认 `127.0.0.1`，建议在生产环境显式设置）
-- `TARGET_PORT`：转发目标端口（默认 `10110`）
+- `TARGET_HOST`：转发目标地址（格式：`host:port`，默认 `127.0.0.1:10110`）  
+  例如：`192.168.87.10:11010`
 - `GEOIP_DB_PATH`：GeoIP 数据库路径（默认 `/usr/share/GeoIP/GeoLite2-Country.mmdb`）
-- `BLOCK_IF_IN_COUNTRIES`：**在这些国家就禁止**。  
+- `BLOCK_IF_IN_COUNTRIES`：**是些国家就禁止**。  
   例如：`CN` 或 `CN,US,JP`
 - `BLOCK_IF_NOT_IN_COUNTRIES`：**不是这些国家就禁止**。  
   例如：`US,CA`（只允许美国和加拿大）
@@ -90,7 +89,7 @@ docker stop et-ban && docker rm et-ban
 2. 代理获取客户端 IP 地址，并查询 GeoIP 国家代码
 3. 按环境变量规则判断是否拦截：
    - 命中拦截规则 → 直接关闭连接
-   - 未命中 → 连接到 `TARGET_HOST:TARGET_PORT`（例如 **192.168.87.10:11010**）
+   - 未命中 → 连接到 `TARGET_HOST`（例如 **192.168.87.10:11010**）
 4. 在客户端与后端服务之间做双向转发
 
 ## 注意事项
@@ -106,7 +105,7 @@ docker stop et-ban && docker rm et-ban
   - 检查 `BLOCK_IF_IN_COUNTRIES` / `BLOCK_IF_NOT_IN_COUNTRIES` 是否配置过严
   - 查看日志中打印的国家代码与规则是否匹配
 - **连接超时或失败**
-  - 确认后端服务实际监听的地址和端口是否与 `TARGET_HOST:TARGET_PORT` 一致
+  - 确认后端服务实际监听的地址和端口是否与 `TARGET_HOST`（格式：`host:port`）一致
   - 确认防火墙 / 安全组已放行 `LISTEN_PORT`
 - **GeoIP 数据库问题**
   - 查看容器日志中是否有“无法下载 GeoIP 数据库”

@@ -181,8 +181,17 @@ def main():
     import os
 
     listen_port = int(os.getenv('LISTEN_PORT', '11221'))
-    target_host = os.getenv('TARGET_HOST', '0.0.0.0')
-    target_port = int(os.getenv('TARGET_PORT', '11010'))
+    
+    # TARGET_HOST 格式：host:port，例如 "127.0.0.1:11010" 或 "192.168.1.100:11010"
+    target_str = os.getenv('TARGET_HOST', '127.0.0.1:10110')
+    if ':' in target_str:
+        target_host, target_port = target_str.rsplit(':', 1)
+        target_port = int(target_port)
+    else:
+        # 兼容旧格式：只有主机名，使用默认端口
+        target_host = target_str
+        target_port = int(os.getenv('TARGET_PORT', '10110'))
+    
     geoip_db_path = os.getenv('GEOIP_DB_PATH', GEOIP_DB_PATH)
 
     # 拦截规则环境变量（逗号分隔的国家代码，如: "CN,US,JP"）
