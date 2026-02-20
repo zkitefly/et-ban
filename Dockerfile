@@ -1,8 +1,8 @@
-FROM python:3.11-slim
+FROM easytier/easytier:latest
 
-# 安装系统依赖
-RUN apt-get update && apt-get install -y \
-    wget \
+# 在 easytier 基础镜像中安装 Python 与依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip wget ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # 下载 GeoLite2 国家数据库
@@ -19,17 +19,19 @@ RUN mkdir -p /usr/share/GeoIP && \
 # 设置工作目录
 WORKDIR /app
 
-# 复制依赖文件
+# 复制依赖文件并安装 Python 依赖
 COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
 
-# 安装 Python 依赖
-RUN pip install --no-cache-dir -r requirements.txt
-
-# 复制代理程序
+# 复制代理程序与入口脚本
 COPY proxy.py .
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# 暴露端口
+# 暴露代理对外端口（11221），内部 easytier 仍监听 11010
 EXPOSE 11221
 
-# 运行代理服务器
-CMD ["python", "proxy.py"]
+# 覆盖 entrypoint：同时启动 easytier-core 和代理
+# 传给容器的所有参数都会转交给 easytier-core
+ENTRYPOINT ["/entrypoint.sh"]
+

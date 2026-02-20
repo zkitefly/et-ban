@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""
-TCP 代理服务器，检查客户端 IP 是否为中国大陆
-如果是中国大陆 IP，拒绝连接；否则转发到目标服务器
-"""
 import socket
 import threading
 import sys
@@ -22,12 +17,23 @@ logger = logging.getLogger(__name__)
 GEOIP_DB_PATH = '/usr/share/GeoIP/GeoLite2-Country.mmdb'
 
 class TCPProxy:
-    def __init__(self, listen_port, target_host, target_port, geoip_db_path=GEOIP_DB_PATH):
+    def __init__(
+        self,
+        listen_port,
+        target_host,
+        target_port,
+        geoip_db_path=GEOIP_DB_PATH,
+        block_if_in_countries=None,
+        block_if_not_in_countries=None,
+    ):
         self.listen_port = listen_port
         self.target_host = target_host
         self.target_port = target_port
         self.geoip_db_path = geoip_db_path
         self.geoip_reader = None
+        # 需要拦截/放行的国家代码集合（大写，ISO-3166 两位）
+        self.block_if_in_countries = set(block_if_in_countries or [])
+        self.block_if_not_in_countries = set(block_if_not_in_countries or [])
         
         # 加载 GeoIP 数据库
         try:
@@ -39,31 +45,57 @@ class TCPProxy:
         except Exception as e:
             logger.error(f"加载 GeoIP 数据库失败: {e}，将允许所有连接")
     
-    def is_china_ip(self, ip_address):
-        """检查 IP 是否为中国大陆"""
+    def _get_country_code(self, ip_address):
+        """获取 IP 所属国家代码，失败返回 None"""
         if not self.geoip_reader:
-            return False
+            return None
         
         try:
             response = self.geoip_reader.country(ip_address)
             country_code = response.country.iso_code
-            # CN 表示中国
-            return country_code == 'CN'
+            return country_code
         except geoip2.errors.AddressNotFoundError:
             logger.warning(f"IP 地址未找到: {ip_address}")
-            return False
+            return None
         except Exception as e:
             logger.error(f"检查 IP 地理位置时出错: {e}")
+            return None
+
+    def is_blocked_ip(self, ip_address):
+        """
+        根据环境变量规则判断 IP 是否应被拦截。
+        规则（按优先级）：
+        1. 如果设置了 BLOCK_IF_IN_COUNTRIES：在列表中则拦截
+        2. 否则，如果设置了 BLOCK_IF_NOT_IN_COUNTRIES：不在列表中则拦截
+        3. 如果都没设置：不拦截任何国家
+        """
+        country_code = self._get_country_code(ip_address)
+        if not country_code:
+            # 查不到国家信息时，默认不拦截（更宽松）
             return False
+
+        # 统一大写
+        country_code = country_code.upper()
+
+        # 1. 在这些国家就禁止
+        if self.block_if_in_countries:
+            return country_code in self.block_if_in_countries
+
+        # 2. 不是这些国家就禁止
+        if self.block_if_not_in_countries:
+            return country_code not in self.block_if_not_in_countries
+
+        # 3. 默认行为：不拦截任何国家
+        return False
     
     def handle_client(self, client_socket, client_address):
         """处理客户端连接"""
         client_ip = client_address[0]
         logger.info(f"收到来自 {client_ip}:{client_address[1]} 的连接")
         
-        # 检查是否为中国大陆 IP
-        if not self.is_china_ip(client_ip):
-            logger.warning(f"拒绝来自中国大陆的连接: {client_ip}")
+        # 根据国家代码规则判断是否拦截
+        if self.is_blocked_ip(client_ip):
+            logger.warning(f"根据国家代码规则拒绝连接: {client_ip}")
             client_socket.close()
             return
         
@@ -147,13 +179,32 @@ class TCPProxy:
 def main():
     # 从环境变量读取配置
     import os
-    
+
     listen_port = int(os.getenv('LISTEN_PORT', '11221'))
     target_host = os.getenv('TARGET_HOST', '0.0.0.0')
     target_port = int(os.getenv('TARGET_PORT', '11010'))
     geoip_db_path = os.getenv('GEOIP_DB_PATH', GEOIP_DB_PATH)
-    
-    proxy = TCPProxy(listen_port, target_host, target_port, geoip_db_path)
+
+    # 拦截规则环境变量（逗号分隔的国家代码，如: "CN,US,JP"）
+    # 1. BLOCK_IF_IN_COUNTRIES: 在这些国家就禁止
+    # 2. BLOCK_IF_NOT_IN_COUNTRIES: 不是这些国家就禁止
+    def parse_countries(env_name):
+        raw = os.getenv(env_name, '')
+        if not raw.strip():
+            return []
+        return [c.strip().upper() for c in raw.split(',') if c.strip()]
+
+    block_if_in = parse_countries('BLOCK_IF_IN_COUNTRIES')
+    block_if_not_in = parse_countries('BLOCK_IF_NOT_IN_COUNTRIES')
+
+    proxy = TCPProxy(
+        listen_port,
+        target_host,
+        target_port,
+        geoip_db_path,
+        block_if_in_countries=block_if_in,
+        block_if_not_in_countries=block_if_not_in,
+    )
     proxy.start()
 
 if __name__ == '__main__':
