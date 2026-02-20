@@ -150,7 +150,7 @@ def main():
     
     listen_port = int(os.getenv('LISTEN_PORT', '11221'))
     target_host = os.getenv('TARGET_HOST', '0.0.0.0')
-    target_port = int(os.getenv('TARGET_PORT', '10110'))
+    target_port = int(os.getenv('TARGET_PORT', '11010'))
     geoip_db_path = os.getenv('GEOIP_DB_PATH', GEOIP_DB_PATH)
     
     proxy = TCPProxy(listen_port, target_host, target_port, geoip_db_path)

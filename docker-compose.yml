@@ -20,7 +20,7 @@ services:
     environment:
       - LISTEN_PORT=11221
       - TARGET_HOST=0.0.0.0
-      - TARGET_PORT=10110
+      - TARGET_PORT=11010
       - GEOIP_DB_PATH=/usr/share/GeoIP/GeoLite2-Country.mmdb
     network_mode: host
     restart: unless-stopped
