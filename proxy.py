@@ -62,7 +62,7 @@ class TCPProxy:
         logger.info(f"收到来自 {client_ip}:{client_address[1]} 的连接")
         
         # 检查是否为中国大陆 IP
-        if self.is_china_ip(client_ip):
+        if not self.is_china_ip(client_ip):
             logger.warning(f"拒绝来自中国大陆的连接: {client_ip}")
             client_socket.close()
             return
