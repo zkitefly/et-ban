@@ -1,9 +1,8 @@
 FROM easytier/easytier:latest
 
 # 在 easytier 基础镜像中安装 Python 与依赖
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip wget ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache \
+    python3 py3-pip wget ca-certificates
 
 # 下载 GeoLite2 国家数据库
 RUN mkdir -p /usr/share/GeoIP && \
