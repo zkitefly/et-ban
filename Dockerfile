@@ -20,7 +20,7 @@ WORKDIR /app
 
 # 复制依赖文件并安装 Python 依赖
 COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
 
 # 复制代理程序与入口脚本
 COPY proxy.py .
